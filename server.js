@@ -1,82 +1,106 @@
-const http = require( "node:http" ),
-    fs   = require( "node:fs" ),
-    // IMPORTANT: you must run `npm install` in the directory for this assignment
-    // to install the mime library if you're testing this on your local machine.
-    // However, Glitch will install it automatically by looking in your package.json
-    // file.
-    mime = require( "mime" ),
-    dir  = "public/",
-    port = 3000
+const http = require("node:http"),
+    fs = require("node:fs"),
+    mime = require("mime"),
+    dir = "public/",
+    port = 3000;
 
-const appdata = [
-    { "model": "toyota", "year": 1999, "mpg": 23 },
-    { "model": "honda", "year": 2004, "mpg": 30 },
-    { "model": "ford", "year": 1987, "mpg": 14}
-]
+// Define heart rate zones and initial workout data
+const HR_ZONES = [
+    { name: "resting", min: 0, max: 117},
+    { name: "UT2", min: 117, max: 126},
+    { name: "UT1", min: 126, max: 156},
+    { name: "AT", min: 157, max: 175 },
+    { name: "TR", min: 176, max: 190},
+    { name: "MHR", min: 191, max: 205 },
+];
 
-// let fullURL = ""
-const server = http.createServer( function( request,response ) {
-    if( request.method === "GET" ) {
-        handleGet( request, response )
-    }else if( request.method === "POST" ){
-        handlePost( request, response )
+let workouts = []; // Store workouts
+
+const server = http.createServer((request, response) => {
+    if (request.method === "GET") {
+        handleGet(request, response);
+    } else if (request.method === "POST") {
+        handlePost(request, response);
     }
 
-    // The following shows the requests being sent to the server
-    // fullURL = `http://${request.headers.host}${request.url}`
-    // console.log( fullURL );
-})
+    // Log the full URL
+    const fullURL = `http://${request.headers.host}${request.url}`;
+    console.log(fullURL);
+});
 
-const handleGet = function( request, response ) {
-    const filename = dir + request.url.slice( 1 )
+// Handle GET requests
+const handleGet = function(request, response) {
+    const filename = dir + request.url.slice(1);
 
-    if( request.url === "/" ) {
-        sendFile( response, "public/index.html" )
-    }else{
-        sendFile( response, filename )
+    if (request.url === "/") {
+        sendFile(response, "public/index.html");
+    } else if (request.url === "/workouts") {
+        response.writeHeader(200, { "Content-Type": "application/json" });
+        response.end(JSON.stringify(workouts)); // workouts data
+        console.log(JSON.stringify(workouts));
+    } else {
+        sendFile(response, filename);
     }
-}
+};
 
-const handlePost = function( request, response ) {
-    let dataString = ""
+// Handle POST requests
+const handlePost = function(request, response) {
+    let dataString = "";
 
-    request.on( "data", function( data ) {
-        dataString += data
-    })
+    request.on("data", function(data) {
+        dataString += data;
+    });
 
-    request.on( "end", function() {
-        console.log( JSON.parse( dataString ) )
+    request.on("end", function() {
+        try {
+            const { heartrate, time, age, weight } = JSON.parse(dataString);
+            if (!heartrate || !time || !age || !weight) {
+                response.writeHeader(400, { "Content-Type": "application/json" });
+                return response.end(JSON.stringify({ error: "heartrate, time, age, or weight missing" }));
+            }
 
-        // ... do something with the data here and at least generate the derived data
+            // Process the received data and calculate calories burned
+            console.log("going to calc calories");
+            const caloriesBurned = Math.round(calcCalories(heartrate, time, age, weight));
+            console.log(caloriesBurned);
+            const zone = HR_ZONES.find(z => heartrate >= z.min && heartrate <= z.max) || HR_ZONES[0];
+            const newWorkout = { heartrate, time, zone: zone.name, caloriesBurned, date: new Date().toISOString() };
 
-        response.writeHead( 200, "OK", {"Content-Type": "text/plain" })
-        response.end("text")
-    })
-}
+            workouts.push(newWorkout);
 
-const sendFile = function( response, filename ) {
-    const type = mime.getType( filename )
+            console.log(newWorkout);
 
-    fs.readFile( filename, function( err, content ) {
-
-        // if the error = null, then we've loaded the file successfully
-        if( err === null ) {
-
-            // status code: https://httpstatuses.com
-            response.writeHeader( 200, { "Content-Type": type })
-            response.end( content )
-
-        } else {
-
-            // file not found, error code 404
-            response.writeHeader( 404 )
-            response.end( "404 Error: File Not Found" )
-
+            response.writeHeader(200, { "Content-Type": "application/json" });
+            response.end(JSON.stringify(newWorkout));
+        } catch (error) {
+            response.writeHeader(400, { "Content-Type": "application/json" });
+            response.end(JSON.stringify({ error: "Invalid JSON format" }));
         }
-    })
+    });
+};
+
+// Calculate calories burned based on heart rate and workout time
+function calcCalories(heartrate, time, age, weight) {
+    return ((time * (0.4472 * heartrate - 0.1263 * (weight*0.4536) + 0.074 * age - 20.4022))/4.184); 
+    //this is the calories burned per workout calculator *for women*
 }
 
-// process.env.PORT references the port that Glitch uses
-// the following line will either use the Glitch port or one that we provided
-server.listen( process.env.PORT || port )
+// Send file to the client
+const sendFile = function(response, filename) {
+    const type = mime.getType(filename);
 
+    fs.readFile(filename, function(err, content) {
+        if (err === null) {
+            response.writeHeader(200, { "Content-Type": type });
+            response.end(content);
+        } else {
+            response.writeHeader(404);
+            response.end("404 Error: File Not Found");
+        }
+    });
+};
+
+// Start the server
+server.listen(process.env.PORT || port, () => {
+    console.log(`Server is running on http://localhost:${port}`);
+});
