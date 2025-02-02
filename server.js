@@ -4,7 +4,7 @@ const http = require("node:http"),
     dir = "public/",
     port = 3000;
 
-// Define heart rate zones and initial workout data
+// this defines the hr zones according to my coach
 const HR_ZONES = [
     { name: "resting", min: 0, max: 117},
     { name: "UT2", min: 117, max: 126},
@@ -14,7 +14,7 @@ const HR_ZONES = [
     { name: "MHR", min: 191, max: 205 },
 ];
 
-let workouts = []; // Store workouts
+let workouts = []; //store workouts 
 
 const server = http.createServer((request, response) => {
     if (request.method === "GET") {
@@ -59,7 +59,6 @@ const handlePost = function(request, response) {
                 return response.end(JSON.stringify({ error: "heartrate, time, age, or weight missing" }));
             }
 
-            // Process the received data and calculate calories burned
             console.log("going to calc calories");
             const caloriesBurned = Math.round(calcCalories(heartrate, time, age, weight));
             console.log(caloriesBurned);
@@ -79,13 +78,11 @@ const handlePost = function(request, response) {
     });
 };
 
-// Calculate calories burned based on heart rate and workout time
 function calcCalories(heartrate, time, age, weight) {
     return ((time * (0.4472 * heartrate - 0.1263 * (weight*0.4536) + 0.074 * age - 20.4022))/4.184); 
     //this is the calories burned per workout calculator *for women*
 }
 
-// Send file to the client
 const sendFile = function(response, filename) {
     const type = mime.getType(filename);
 
@@ -100,7 +97,6 @@ const sendFile = function(response, filename) {
     });
 };
 
-// Start the server
 server.listen(process.env.PORT || port, () => {
     console.log(`Server is running on http://localhost:${port}`);
 });
