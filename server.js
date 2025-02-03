@@ -19,7 +19,7 @@ let workouts = []; //store workouts
 const server = http.createServer((request, response) => {
     if (request.method === "GET") {
         handleGet(request, response);
-    } else if (request.method === "POST") {
+    } else if (request.method === "POST" && request.url === "/submit") {
         handlePost(request, response);
     }
 
@@ -43,7 +43,7 @@ const handleGet = function(request, response) {
     }
 };
 
-// Handle POST requests
+// handle POST requests
 const handlePost = function(request, response) {
     let dataString = "";
 
@@ -53,17 +53,23 @@ const handlePost = function(request, response) {
 
     request.on("end", function() {
         try {
-            const { heartrate, time, age, weight } = JSON.parse(dataString);
-            if (!heartrate || !time || !age || !weight) {
+            const { heartrate, time, age, weight, meters, deleteEntry } = JSON.parse(dataString);
+            if (!deleteEntry && (!heartrate || !time || !age || !weight || !meters) ) {
                 response.writeHeader(400, { "Content-Type": "application/json" });
-                return response.end(JSON.stringify({ error: "heartrate, time, age, or weight missing" }));
+                return response.end(JSON.stringify({ error: "heartrate, time, age, weight, or meters missing" }));
+            }
+
+            if (deleteEntry && workouts.length > 0) {
+                workouts.pop(); // pop last workout off of array
+                response.writeHead(200, { "Content-Type": "application/json" });
+                return response.end(JSON.stringify({ message: "last entry deleted" }));
             }
 
             console.log("going to calc calories");
             const caloriesBurned = Math.round(calcCalories(heartrate, time, age, weight));
             console.log(caloriesBurned);
             const zone = HR_ZONES.find(z => heartrate >= z.min && heartrate <= z.max) || HR_ZONES[0];
-            const newWorkout = { heartrate, time, zone: zone.name, caloriesBurned, date: new Date().toISOString() };
+            const newWorkout = { heartrate, time, zone: zone.name, caloriesBurned, date: new Date().toISOString(), meters };
 
             workouts.push(newWorkout);
 

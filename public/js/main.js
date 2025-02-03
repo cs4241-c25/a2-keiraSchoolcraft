@@ -17,15 +17,25 @@ document.addEventListener("DOMContentLoaded", function () {
         const time = document.querySelector("#time").value;
         const age = document.querySelector("#age").value;
         const weight = document.querySelector("#weight").value;
+        const meters = document.querySelector("#meters").value;
+        const deleteEntryElement = document.querySelector("input[name='deleteEntry']:checked");
+        const deleteEntry = deleteEntryElement ? deleteEntryElement.value === "yes" : false;
 
-        if(!heartrate || !time || !age || !time) {
+        if(!deleteEntry && (!heartrate || !time || !age || !weight || !meters)) {
             alert("You must fill out every question in the form.");
+            console.log("hit error, here's the data:");
+            console.log(heartrate);
+            console.log(time);
+            console.log(age);
+            console.log(weight);
+            console.log(meters);
             return;
         }
+
         const response = await fetch( "/submit", {
             method: 'POST',
             headers: { "Content-Type": "application/json"},
-            body: JSON.stringify({heartrate: parseInt(heartrate), time: parseInt(time), age: parseInt(age), weight: parseInt(weight)}),
+            body: JSON.stringify({heartrate: parseInt(heartrate), time: parseInt(time), age: parseInt(age), weight: parseInt(weight), meters: parseInt(meters), deleteEntry}),
         });
         const data = await response.json();
         updateTable();
@@ -36,11 +46,12 @@ document.addEventListener("DOMContentLoaded", function () {
         const workouts = await response.json();
 
         dataTable.innerHTML = "";
-        workouts.forEach(({heartrate, time, zone, caloriesBurned, date}) => {
+        workouts.forEach(({heartrate, time, zone, caloriesBurned, date, meters}) => {
             const row = `<tr>
                 <td>${heartrate}</td>
                 <td>${time}</td>
                 <td>${zone}</td>
+                <td>${meters}</td>
                 <td>${caloriesBurned}</td>
                 <td>${date}</td>
             </tr>`;
